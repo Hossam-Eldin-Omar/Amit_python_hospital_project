@@ -250,10 +250,8 @@ hospital-management/
 ├── pyproject.toml                   # Poetry configuration
 ├── poetry.lock                      # Dependency lock file
 ├── dockerfile                       # Docker configuration
-├── docker-compose.yaml              # Docker Compose configuration
 ├── .env.example                     # Environment variables template
 ├── README.md                        # This file
-├── HowToRun                         # Quick reference guide
 ├── logs/                            # Application logs directory
 ├── src/
 │   ├── __init__.py

@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "amit-python-hospital"
+version = "0.1.0"
+description = "Hospital Management System using ScyllaDB"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+python-dotenv = "^1.0.0"
+cassandra-driver = "^3.29.3"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+black = "^23.7.0"
+flake8 = "^6.1.0"
+mypy = "^1.5.0"
+
+[tool.poetry.scripts]
+hospital = "main:main"
+init-db = "src.database.init_db:initialize_database"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
