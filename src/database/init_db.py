@@ -104,7 +104,8 @@ def create_tables(session):
         CREATE TABLE IF NOT EXISTS staff (
             department_id UUID,
             staff_id UUID,
-            name text,
+            first_name text,
+            last_name text,
             age int,
             position text,
             created_at timestamp,
