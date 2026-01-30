@@ -20,7 +20,7 @@ class Patient(Person):
         # Initialize Person with full name and age
         full_name = f"{first_name} {last_name}"
         super().__init__(name=full_name, age=age)
-        
+
         # Patient-specific attributes
         self.patient_id = patient_id or uuid4()
         self.first_name = first_name

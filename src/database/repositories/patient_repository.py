@@ -16,12 +16,20 @@ class PatientRepository:
         """Initialize repository with optional session"""
         self.db = ScyllaDBConnection() if session is None else None
         self.session = session or self.db.connect()
-        self.session.set_keyspace('hospital')
+        self.session.set_keyspace("hospital")
 
-    def create(self, first_name: str, last_name: str, date_of_birth: str, age: int, phone: str, department_id: UUID = None) -> str:
+    def create(
+        self,
+        first_name: str,
+        last_name: str,
+        date_of_birth: str,
+        age: int,
+        phone: str,
+        department_id: UUID = None,
+    ) -> str:
         """
         Insert a new patient into the database
-        
+
         Args:
             first_name: Patient's first name
             last_name: Patient's last name
@@ -29,7 +37,7 @@ class PatientRepository:
             age: Patient's age
             phone: Contact phone number
             department_id: Optional department UUID (auto-generated if not provided)
-        
+
         Returns:
             str: patient_id of created patient, or None if failed
         """
@@ -58,7 +66,9 @@ class PatientRepository:
                 ],
             )
 
-            logger.info(f"Patient {first_name} {last_name} created successfully with ID {patient_id}")
+            logger.info(
+                f"Patient {first_name} {last_name} created successfully with ID {patient_id}"
+            )
             return str(patient_id)
 
         except Exception as e:
@@ -68,11 +78,11 @@ class PatientRepository:
     def find_by_id(self, patient_id, department_id=None) -> Optional[Patient]:
         """
         Find patient by ID
-        
+
         Args:
             patient_id: UUID of patient (can be UUID object or string)
             department_id: Department UUID (can be UUID object, string, or None)
-        
+
         Returns:
             Patient: Patient object or None
         """
@@ -83,14 +93,14 @@ class PatientRepository:
             except ValueError:
                 logger.error(f"Invalid patient_id format: {patient_id}")
                 return None
-        
+
         if department_id and isinstance(department_id, str):
             try:
                 department_id = UUID(department_id)
             except ValueError:
                 logger.error(f"Invalid department_id format: {department_id}")
                 return None
-        
+
         if not department_id:
             logger.warning("Department ID not provided, scanning all partitions")
             return self._find_by_id_scan(patient_id)
@@ -148,10 +158,10 @@ class PatientRepository:
     def find_by_department(self, department_id: UUID) -> List[Patient]:
         """
         Find all patients in a department
-        
+
         Args:
             department_id: UUID of department
-        
+
         Returns:
             List[Patient]: List of Patient objects
         """
@@ -182,14 +192,16 @@ class PatientRepository:
             logger.error(f"Error finding patients by department: {e}")
             return []
 
-    def find_by_name(self, first_name: str = None, last_name: str = None) -> List[Patient]:
+    def find_by_name(
+        self, first_name: str = None, last_name: str = None
+    ) -> List[Patient]:
         """
         Find patients by name (uses ALLOW FILTERING - inefficient)
-        
+
         Args:
             first_name: Patient's first name (optional)
             last_name: Patient's last name (optional)
-        
+
         Returns:
             List[Patient]: Matching Patient objects
         """
@@ -240,12 +252,12 @@ class PatientRepository:
     def update(self, department_id: UUID, patient_id: UUID, **kwargs) -> bool:
         """
         Update patient information
-        
+
         Args:
             department_id: Department UUID
             patient_id: Patient UUID
             **kwargs: Fields to update (first_name, last_name, phone, age, etc.)
-        
+
         Returns:
             bool: Success status
         """
@@ -277,11 +289,11 @@ class PatientRepository:
     def delete(self, department_id: UUID, patient_id: UUID) -> bool:
         """
         Delete a patient
-        
+
         Args:
             department_id: Department UUID
             patient_id: Patient UUID
-        
+
         Returns:
             bool: Success status
         """
@@ -301,7 +313,7 @@ class PatientRepository:
     def get_all(self) -> List[Patient]:
         """
         Get all patients (use with caution on large datasets)
-        
+
         Returns:
             List[Patient]: All patients in database
         """
