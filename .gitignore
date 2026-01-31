@@ -73,3 +73,5 @@ Thumbs.db
 .cache/
 temp/
 tmp/
+
+STREAMLIT_UI_REFERENCE.md
