@@ -3,7 +3,7 @@ from datetime import datetime
 
 
 class Person:
-    """Base Person class"""
+    """Base Person class – parent of Patient and Staff (UML inheritance)."""
 
     def __init__(self, name: str, age: int, person_id=None):
         self.person_id = person_id or uuid4()
@@ -12,11 +12,11 @@ class Person:
         self.created_at = datetime.now()
 
     def view_info(self) -> str:
-        """Display person information"""
+        """Display person information."""
         return f"Name: {self.name}, Age: {self.age}"
 
     def to_dict(self):
-        """Convert to dictionary for database storage"""
+        """Convert to dictionary for database storage."""
         return {
             "person_id": self.person_id,
             "name": self.name,

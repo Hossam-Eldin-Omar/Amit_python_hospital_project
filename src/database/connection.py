@@ -23,7 +23,7 @@ class ScyllaDBConnection:
     def __init__(self):
         self.cluster = None
         self.session = None
-        self.host = os.getenv("SCYLLA_HOST", "scylla-node")
+        self.host = os.getenv("SCYLLA_HOST", "new-scylla-node")
         self.port = int(os.getenv("SCYLLA_PORT", "9042"))
 
     def connect(self, max_retries=5, retry_delay=5):

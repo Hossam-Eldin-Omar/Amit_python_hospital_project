@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # ScyllaDB Service - NoSQL Database
+  new-scylla-node:
+    image: scylladb/scylla:latest
+    container_name: new-scylla-node
+    ports:
+      - "9042:9042"  # CQL Port
+      - "9160:9160"  # Thrift Port
+      - "10000:10000"  # Admin Port
+    volumes:
+      - scylla_data:/var/lib/scylla
+    environment:
+      - SCYLLA_SEEDS=new-scylla-node
+    networks:
+      - new-scylla-net
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "select * from system.peers"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Streamlit Web Application
+  hospital-app:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: hospital-app
+    ports:
+      - "8501:8501"  # Streamlit Port
+    environment:
+      - SCYLLA_HOST=new-scylla-node
+      - SCYLLA_PORT=9042
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      new-scylla-node:
+        condition: service_healthy
+    networks:
+      - new-scylla-net
+    restart: unless-stopped
+    volumes:
+      - .:/app
+
+networks:
+  new-scylla-net:
+    driver: bridge
+
+volumes:
+  scylla_data:
+    driver: local

@@ -1,7 +1,8 @@
 # Hospital Management System
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io/)
 [![Poetry](https://img.shields.io/badge/Poetry-1.8+-blue.svg)](https://python-poetry.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![ScyllaDB](https://img.shields.io/badge/ScyllaDB-5.0+-brightgreen.svg)](https://www.scylladb.com/)
@@ -15,6 +16,7 @@
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Streamlit Web Application](#streamlit-web-application)
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Project Structure](#project-structure)
@@ -22,7 +24,6 @@
 - [Development](#development)
 - [Testing](#testing)
 - [Docker Commands](#docker-commands)
-- [API Endpoints](#api-endpoints)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
@@ -44,7 +45,10 @@ Welcome to the Hospital Management System! This guide is designed for developers
 ### **Advanced Capabilities** 
 - **Multi-threaded Architecture**: High-performance concurrent processing
 - **Professional Logging**: Comprehensive logging with DEBUG, INFO, and ERROR levels
-- **Web Interface**: Python-based CLI and database management interface
+- **Streamlit Web Interface**: Modern, professional web UI for patient management
+- **Dashboard & Analytics**: Visual statistics, charts, and real-time metrics
+- **Patient Registration Form**: Intuitive form with validation and auto-calculation
+- **Advanced Search**: Multiple search methods (ID, Name, Phone)
 - **Dockerized Environment**: Complete containerization with easy deployment
 - **Input Validation**: Date format validation, required field enforcement
 - **Timestamp Tracking**: Automatic creation timestamp recording
@@ -56,7 +60,7 @@ Before setting up the Hospital Management System, ensure you have the following 
 
 ### Required Software
 
-- **Python 3.9+**
+- **Python 3.10+**
   - Download from [python.org](https://www.python.org/downloads/)
 
 - **Poetry** (for dependency management)
@@ -184,6 +188,85 @@ ID: 550e8400-e29b-41d4-a716-446655440000 | John Doe
   Age: 34
   Phone: +1-555-123-4567
 ```
+
+## <span id="streamlit-web-application"></span>🌐 Streamlit Web Application
+
+The Hospital Management System includes a modern, professional **Streamlit-based web interface** for easy patient management.
+
+### Running the Streamlit App
+
+**Locally with Poetry:**
+
+```bash
+# Install dependencies
+poetry install
+
+# Run Streamlit app
+poetry run streamlit run streamlit_app/app.py
+```
+
+**With Docker:**
+
+```bash
+# Build Docker image
+docker build -t hospital-app .
+
+# Run container
+docker run -p 8501:8501 \
+  -e SCYLLA_HOST=new-scylla-node \
+  -e SCYLLA_PORT=9042 \
+  --network your-docker-network \
+  hospital-app
+```
+
+### Access Streamlit Web App
+
+Open your browser to: **http://localhost:8501**
+
+### Web Application Features
+
+The Streamlit interface provides 4 main pages:
+
+#### 📊 Dashboard
+- Hospital statistics and overview
+- 30-day patient registration trends (interactive chart)
+- Patient distribution by department (pie chart)
+- Recent patient registrations table
+- Key metrics display
+
+#### 👤 Add Patient
+- Patient registration form
+- Personal information (First name, Last name, DOB)
+- Contact information (Phone, Email)
+- Additional information (Gender, Blood type)
+- Automatic age calculation
+- Real-time validation with feedback
+- Success confirmation with summary
+
+#### 🔍 Search Patients
+- Multiple search options:
+  - **Patient ID Search**: Find by unique patient identifier
+  - **Name Search**: Search by first name, last name, or both
+  - **Phone Search**: Find by phone number
+  - **View All**: Display all patients in the system
+- Two result views:
+  - **Table View**: Organized columns with sortable data
+  - **Detailed Card View**: Expandable cards with full patient information
+
+#### ⚙️ Settings
+- System information and status
+- Database configuration view
+- Logging settings
+- User management interface
+- Backup and maintenance tools
+
+### Web Interface Design
+
+- **Professional UI**: Purple gradient sidebar with modern styling
+- **Interactive Components**: Charts, tables, forms with real-time feedback
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+- **Form Validation**: Input validation with helpful error messages
+- **Real-time Feedback**: Success/error notifications and loading indicators
 
 ## <span id="configuration"></span>⚙️ Configuration
 

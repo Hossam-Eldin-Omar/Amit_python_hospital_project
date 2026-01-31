@@ -13,11 +13,13 @@ ENV PATH="/root/.local/bin:$PATH"
 WORKDIR /app
 
 # Copy Poetry configuration files
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml poetry.lock* ./
 
-# Configure Poetry to not create virtual environment and install dependencies
-RUN poetry config virtualenvs.create false && \
-    poetry install --no-interaction --no-ansi --no-root
+# Configure Poetry to not create virtual environment first
+RUN poetry config virtualenvs.create false
+
+# Install dependencies (this will also sync the lock file if needed)
+RUN poetry install --no-interaction --no-ansi --no-root
 
 # Copy the entire project
 COPY . .
@@ -26,8 +28,19 @@ COPY . .
 ENV PYTHONPATH="/app/src:/app"
 
 # Set environment variables for ScyllaDB connection
-ENV SCYLLA_HOST=scylla-node
+ENV SCYLLA_HOST=new-scylla-node
 ENV SCYLLA_PORT=9042
 
-# Default command - test database connection
-CMD ["python", "-m", "src.database.connection"]
+# Expose Streamlit port
+EXPOSE 8501
+
+# Create .streamlit config directory
+RUN mkdir -p /app/.streamlit
+
+# Create streamlit credentials and config if they don't exist
+RUN echo '[general]' > /app/.streamlit/credentials.toml && \
+    echo 'email = ""' >> /app/.streamlit/credentials.toml
+
+# Run Streamlit app
+ENTRYPOINT []
+CMD ["streamlit", "run", "streamlit_app/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
