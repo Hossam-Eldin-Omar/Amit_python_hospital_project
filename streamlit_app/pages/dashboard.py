@@ -1,5 +1,5 @@
 """
-Dashboard page - displays hospital statistics and overview
+Dashboard page – displays live hospital statistics across all four entities.
 """
 
 import streamlit as st
@@ -10,171 +10,180 @@ import pandas as pd
 from pathlib import Path
 import sys
 
-# Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from src.database.repositories.hospital_repository import HospitalRepository
+from src.database.repositories.department_repository import DepartmentRepository
 from src.database.repositories.patient_repository import PatientRepository
+from src.database.repositories.staff_repository import StaffRepository
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 
+# ─────────────────────────────────────────────────────────── #
+# Cached repo accessors
+# ─────────────────────────────────────────────────────────── #
 @st.cache_resource
-def get_patient_repository():
-    """Get or create PatientRepository instance"""
+def get_repos():
     try:
-        return PatientRepository()
+        from src.database.connection import ScyllaDBConnection
+        from src.database.init_db import initialize_database
+
+        db = ScyllaDBConnection()
+        session = db.connect()
+        initialize_database(session)
+        return (
+            HospitalRepository(session=session),
+            DepartmentRepository(session=session),
+            PatientRepository(session=session),
+            StaffRepository(session=session),
+        )
     except Exception as e:
-        logger.error(f"Failed to connect to database: {e}")
-        return None
+        logger.error(f"Failed to connect: {e}")
+        return None, None, None, None
 
 
 def render():
-    """Render dashboard page"""
-    
     st.markdown("# 📊 Dashboard")
-    st.markdown("Hospital Management System Overview")
+    st.markdown("Live overview of the entire hospital system")
     st.markdown("---")
-    
-    repo = get_patient_repository()
-    
-    if repo is None:
-        st.error("⚠️ Unable to connect to database. Please check your database configuration.")
+
+    hosp_repo, dept_repo, patient_repo, staff_repo = get_repos()
+    if hosp_repo is None:
+        st.error("⚠️ Unable to connect to database.")
         return
-    
-    # Create columns for metrics
+
+    # ───── Fetch all data ───── #
+    hospitals = hosp_repo.get_all() or []
+    departments = dept_repo.get_all() or []
+    patients = patient_repo.get_all() or []
+    staff = staff_repo.get_all() or []
+
+    # ───── Top-level metrics ───── #
     col1, col2, col3, col4 = st.columns(4)
-    
-    # Fetch total patients count
-    try:
-        all_patients = repo.get_all()
-        total_patients = len(all_patients) if all_patients else 0
-        
-        with col1:
-            st.metric(
-                label="👥 Total Patients",
-                value=total_patients,
-                delta="+5 this month",
-                delta_color="off"
-            )
-    except Exception as e:
-        logger.error(f"Error fetching patient count: {e}")
-        with col1:
-            st.metric(label="👥 Total Patients", value="N/A")
-    
-    # Active patients today (mock data)
-    with col2:
-        st.metric(
-            label="🏥 Active Today",
-            value="12",
-            delta="+2 from yesterday"
-        )
-    
-    # Departments
-    with col3:
-        st.metric(
-            label="🏢 Departments",
-            value="5",
-            delta="All operational"
-        )
-    
-    # System Health
-    with col4:
-        st.metric(
-            label="💚 System Health",
-            value="100%",
-            delta="All systems operational"
-        )
-    
-    st.markdown("---")
-    
-    # Charts section
-    col1, col2 = st.columns(2)
-    
     with col1:
-        st.markdown("### 📈 Patient Registration Trend")
-        
-        # Sample data for trend
-        dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
-        registrations = [5, 7, 3, 9, 11, 8, 6, 12, 4, 10, 
-                        7, 9, 11, 5, 8, 6, 10, 12, 7, 9,
-                        8, 11, 6, 9, 10, 7, 8, 12, 5, 11]
-        
-        df_trend = pd.DataFrame({
-            'Date': dates,
-            'Registrations': registrations
-        })
-        
-        fig_trend = px.line(df_trend, x='Date', y='Registrations',
-                           title='Daily Patient Registrations (Last 30 Days)',
-                           markers=True,
-                           line_shape='spline')
-        fig_trend.update_layout(
-            hovermode='x unified',
-            height=400,
-            template='plotly_white'
-        )
-        st.plotly_chart(fig_trend, use_container_width=True)
-    
+        st.metric("🏥 Hospitals", len(hospitals))
     with col2:
-        st.markdown("### 🏥 Patients by Department")
-        
-        departments = ['Cardiology', 'Orthopedics', 'Neurology', 'Pediatrics', 'General']
-        patient_counts = [24, 18, 15, 22, 31]
-        
-        fig_dept = go.Figure(data=[
-            go.Pie(labels=departments, values=patient_counts,
-                  marker=dict(colors=['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8']))
-        ])
-        fig_dept.update_layout(
-            height=400,
-            template='plotly_white'
-        )
-        st.plotly_chart(fig_dept, use_container_width=True)
-    
+        st.metric("🏢 Departments", len(departments))
+    with col3:
+        st.metric("👥 Patients", len(patients))
+    with col4:
+        st.metric("👔 Staff", len(staff))
+
     st.markdown("---")
-    
-    # Recent activity section
-    st.markdown("### 📋 Recent Patient Registrations")
-    
-    try:
-        all_patients = repo.get_all()
-        recent_patients = all_patients[:10] if all_patients else []
-        
-        if recent_patients and len(recent_patients) > 0:
-            # Create DataFrame from patient data
-            patient_data = []
-            for patient in recent_patients:
-                patient_dict = patient.to_dict() if hasattr(patient, 'to_dict') else patient
-                patient_data.append({
-                    'Patient ID': str(patient_dict.get('patient_id', 'N/A'))[:8] + '...',
-                    'Name': f"{patient_dict.get('first_name', '')} {patient_dict.get('last_name', '')}",
-                    'Age': patient_dict.get('age', 'N/A'),
-                    'Phone': patient_dict.get('phone', 'N/A'),
-                    'Registration Date': patient_dict.get('created_at', 'N/A')
-                })
-            
-            df_recent = pd.DataFrame(patient_data)
-            st.dataframe(df_recent, use_container_width=True, hide_index=True)
+
+    # ───── Charts ───── #
+    col_left, col_right = st.columns(2)
+
+    # Patients per department (pie)
+    with col_left:
+        st.markdown("### 👥 Patients by Department")
+        dept_patient_counts = {}
+        for d in departments:
+            dept_patient_counts[d.name] = len(
+                patient_repo.find_by_department(d.department_id)
+            )
+
+        if dept_patient_counts:
+            fig = go.Figure(
+                data=[
+                    go.Pie(
+                        labels=list(dept_patient_counts.keys()),
+                        values=list(dept_patient_counts.values()),
+                        marker=dict(
+                            colors=[
+                                "#FF6B6B", "#4ECDC4", "#45B7D1",
+                                "#FFA07A", "#98D8C8", "#7B68EE",
+                            ]
+                        ),
+                    )
+                ]
+            )
+            fig.update_layout(height=350, template="plotly_white")
+            st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("ℹ️ No patients registered yet.")
-    
-    except Exception as e:
-        logger.error(f"Error fetching recent patients: {e}")
-        st.warning(f"Could not load recent patients: {str(e)}")
-    
+            st.info("No department data yet.")
+
+    # Staff per department (bar)
+    with col_right:
+        st.markdown("### 👔 Staff by Department")
+        dept_staff_counts = {}
+        for d in departments:
+            dept_staff_counts[d.name] = len(
+                staff_repo.find_by_department(d.department_id)
+            )
+
+        if dept_staff_counts:
+            fig_bar = px.bar(
+                x=list(dept_staff_counts.keys()),
+                y=list(dept_staff_counts.values()),
+                labels={"x": "Department", "y": "Staff Count"},
+                color_discrete_sequence=["#667eea"],
+            )
+            fig_bar.update_layout(height=350, template="plotly_white")
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.info("No staff data yet.")
+
     st.markdown("---")
-    
-    # Quick stats boxes
-    st.markdown("### 📊 Key Metrics")
-    
-    metric_col1, metric_col2, metric_col3 = st.columns(3)
-    
-    with metric_col1:
-        st.info("**Average Age**: 45.3 years")
-    
-    with metric_col2:
-        st.info("**Total Admissions**: 156")
-    
-    with metric_col3:
-        st.info("**Avg. Hospital Stay**: 4.2 days")
+
+    # ───── Departments per hospital (bar) ───── #
+    st.markdown("### 🏥 Departments per Hospital")
+    hosp_dept_counts = {}
+    for h in hospitals:
+        hosp_dept_counts[h.name] = len(dept_repo.find_by_hospital(h.hospital_id))
+
+    if hosp_dept_counts:
+        fig_h = px.bar(
+            x=list(hosp_dept_counts.keys()),
+            y=list(hosp_dept_counts.values()),
+            labels={"x": "Hospital", "y": "Departments"},
+            color_discrete_sequence=["#4ECDC4"],
+        )
+        fig_h.update_layout(height=300, template="plotly_white")
+        st.plotly_chart(fig_h, use_container_width=True)
+    else:
+        st.info("No hospital data yet.")
+
+    st.markdown("---")
+
+    # ───── Recent patients table ───── #
+    st.markdown("### 📋 Recent Patients")
+    if patients:
+        rows = []
+        for p in patients[:15]:
+            rows.append(
+                {
+                    "Patient ID": str(p.patient_id)[:8] + "...",
+                    "Name": f"{p.first_name} {p.last_name}",
+                    "Age": p.age,
+                    "Phone": p.phone,
+                    "Department": str(p.department_id)[:8] + "...",
+                    "Medical Record": p.medical_record or "—",
+                    "Registered": p.created_at,
+                }
+            )
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("No patients registered yet.")
+
+    st.markdown("---")
+
+    # ───── Recent staff table ───── #
+    st.markdown("### 📋 Staff Members")
+    if staff:
+        rows = []
+        for s in staff[:15]:
+            rows.append(
+                {
+                    "Staff ID": str(s.staff_id)[:8] + "...",
+                    "Name": f"{s.first_name} {s.last_name}",
+                    "Position": s.position,
+                    "Age": s.age,
+                    "Department": str(s.department_id)[:8] + "...",
+                }
+            )
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("No staff registered yet.")

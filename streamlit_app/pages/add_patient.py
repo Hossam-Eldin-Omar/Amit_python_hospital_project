@@ -1,5 +1,7 @@
 """
-Add Patient page - form for registering new patients
+Add Patient page – register a new patient linked to a specific department.
+
+Flow: select Hospital → select Department → fill patient form → submit
 """
 
 import streamlit as st
@@ -7,9 +9,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import sys
 
-# Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from src.database.repositories.hospital_repository import HospitalRepository
+from src.database.repositories.department_repository import DepartmentRepository
 from src.database.repositories.patient_repository import PatientRepository
 from src.utils.logger import setup_logger
 
@@ -17,193 +20,94 @@ logger = setup_logger(__name__)
 
 
 @st.cache_resource
-def get_patient_repository():
-    """Get or create PatientRepository instance"""
-    try:
-        return PatientRepository()
-    except Exception as e:
-        logger.error(f"Failed to connect to database: {e}")
-        return None
+def get_repos():
+    from src.database.connection import ScyllaDBConnection
+    from src.database.init_db import initialize_database
+
+    db = ScyllaDBConnection()
+    session = db.connect()
+    initialize_database(session)
+
+    return (
+        HospitalRepository(session=session),
+        DepartmentRepository(session=session),
+        PatientRepository(session=session),
+    )
 
 
 def calculate_age(dob):
-    """Calculate age from date of birth"""
-    today = datetime.now()
-    age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-    return age
+    today = datetime.now().date()
+    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
 
 def render():
-    """Render add patient page"""
-    
     st.markdown("# 👤 Add New Patient")
-    st.markdown("Register a new patient in the hospital system")
+    st.markdown("Register a new patient linked to a hospital department")
     st.markdown("---")
-    
-    repo = get_patient_repository()
-    
-    if repo is None:
-        st.error("⚠️ Unable to connect to database. Please check your database configuration.")
+
+    hosp_repo, dept_repo, patient_repo = get_repos()
+
+    hospitals = hosp_repo.get_all() or []
+    if not hospitals:
+        st.warning("No hospitals exist.")
         return
-    
-    # Create a form for patient registration
+
+    hospital_map = {h.name: h for h in hospitals}
+    selected_hospital = hospital_map[
+        st.selectbox("🏥 Select Hospital", hospital_map.keys())
+    ]
+
+    departments = dept_repo.find_by_hospital(selected_hospital.hospital_id) or []
+    if not departments:
+        st.warning("No departments in this hospital.")
+        return
+
+    dept_map = {d.name: d for d in departments}
+    selected_dept = dept_map[
+        st.selectbox("🏢 Select Department", dept_map.keys())
+    ]
+
+    st.markdown("---")
+
     with st.form("patient_registration_form", clear_on_submit=True):
-        
-        st.markdown("### Personal Information")
-        
         col1, col2 = st.columns(2)
-        
         with col1:
-            first_name = st.text_input(
-                "First Name *",
-                placeholder="Enter first name",
-                help="Patient's first name"
-            )
-        
+            first_name = st.text_input("First Name *")
         with col2:
-            last_name = st.text_input(
-                "Last Name *",
-                placeholder="Enter last name",
-                help="Patient's last name"
-            )
-        
+            last_name = st.text_input("Last Name *")
+
         col1, col2 = st.columns(2)
-        
         with col1:
             date_of_birth = st.date_input(
                 "Date of Birth *",
-                value=datetime.now() - timedelta(days=365*30),
-                min_value=datetime.now() - timedelta(days=365*120),
-                max_value=datetime.now(),
-                help="Patient's date of birth"
+                value=datetime.now().date() - timedelta(days=365 * 30),
+                min_value=datetime(1900, 1, 1).date(),
+                max_value=datetime.now().date(),
             )
-        
         with col2:
             age = calculate_age(date_of_birth)
-            st.metric(label="Calculated Age", value=f"{age} years")
-        
-        st.markdown("### Contact Information")
-        
-        phone = st.text_input(
-            "Phone Number *",
-            placeholder="+20 123-4567890",
-            help="Patient's contact phone number"
-        )
-        
-        st.markdown("### Additional Information")
-        
-        col1 = st.columns(1)
-        
-        with col1:
-            gender = st.selectbox(
-                "Gender",
-                options=["Not Specified", "Male", "Female", "Other"],
-                help="Patient's gender"
-            )
-        
-        st.markdown("---")
-        
-        # Form submission
-        col1, col2, col3 = st.columns([1, 1, 1])
-        
-        with col1:
-            submitted = st.form_submit_button(
-                "✅ Register Patient",
-                use_container_width=True
-            )
-        
-        with col2:
-            st.form_submit_button(
-                "🔄 Reset Form",
-                use_container_width=True
-            )
-    
-    # Handle form submission
+            st.metric("Calculated Age", f"{age} years")
+
+        phone = st.text_input("Phone Number *")
+        medical_record = st.text_area("Medical Record (optional)")
+
+        submitted = st.form_submit_button("✅ Register Patient", use_container_width=True)
+
     if submitted:
-        # Validation
-        validation_errors = []
-        
-        if not first_name or not first_name.strip():
-            validation_errors.append("❌ First name is required")
-        
-        if not last_name or not last_name.strip():
-            validation_errors.append("❌ Last name is required")
-        
-        if not phone or not phone.strip():
-            validation_errors.append("❌ Phone number is required")
-        
-        # Phone validation (basic)
-        if phone and not any(c.isdigit() for c in phone):
-            validation_errors.append("❌ Phone number must contain at least one digit")
-        
-        if validation_errors:
-            for error in validation_errors:
-                st.error(error)
-        else:
-            # Attempt to register patient
-            try:
-                with st.spinner("🔄 Registering patient..."):
-                    patient_id = repo.create(
-                        first_name=first_name.strip(),
-                        last_name=last_name.strip(),
-                        date_of_birth=date_of_birth.strftime("%Y-%m-%d"),
-                        age=age,
-                        phone=phone.strip()
-                    )
-                
-                if patient_id:
-                    st.success(f"✅ Patient registered successfully!")
-                    
-                    # Display registration summary
-                    st.markdown("### 📋 Registration Summary")
-                    
-                    summary_col1, summary_col2 = st.columns(2)
-                    
-                    with summary_col1:
-                        st.info(f"**Patient ID:** {str(patient_id)[:8]}...")
-                        st.info(f"**Name:** {first_name} {last_name}")
-                        st.info(f"**Age:** {age} years")
-                    
-                    with summary_col2:
-                        st.info(f"**DOB:** {date_of_birth.strftime('%B %d, %Y')}")
-                        st.info(f"**Phone:** {phone}")
-                        st.info(f"**Registered:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-                    
-                    # Log the registration
-                    logger.info(f"Patient registered: {first_name} {last_name} (ID: {patient_id})")
-                else:
-                    st.error("❌ Failed to register patient. Please try again.")
-                    logger.error(f"Failed to register patient: {first_name} {last_name}")
-            
-            except Exception as e:
-                st.error(f"❌ Error registering patient: {str(e)}")
-                logger.error(f"Exception during patient registration: {e}")
-    
-    # Information section
-    st.markdown("---")
-    st.markdown("### 📝 Instructions")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        **Required Fields:**
-        - First Name
-        - Last Name
-        - Date of Birth
-        - Phone Number
-        
-        The system will automatically:
-        - Calculate patient age
-        - Generate unique patient ID
-        - Record registration timestamp
-        """)
-    
-    with col2:
-        st.markdown("""
-        **Tips:**
-        - Ensure phone number is valid
-        - Use correct date format (MM/DD/YYYY)
-        - Fill in blood type for emergency reference
-        - Double-check information before submitting
-        """)
+        try:
+            patient_id = patient_repo.create(
+                first_name=first_name.strip(),
+                last_name=last_name.strip(),
+                date_of_birth=date_of_birth,
+                age=age,
+                phone=phone.strip(),
+                department_id=selected_dept.department_id,
+                medical_record=medical_record.strip() or None,
+            )
+
+            st.success("✅ Patient registered successfully")
+            st.info(f"Patient ID: {patient_id}")
+
+        except Exception as e:
+            st.error(f"❌ {e}")
+            logger.exception("Patient registration failed")
