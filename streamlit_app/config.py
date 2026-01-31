@@ -9,7 +9,7 @@ from pathlib import Path
 STREAMLIT_DIR = Path(__file__).parent
 
 # Environment variables
-SCYLLA_HOST = os.getenv("SCYLLA_HOST", "scylla-node")
+SCYLLA_HOST = os.getenv("SCYLLA_HOST", "new-scylla-node")
 SCYLLA_PORT = int(os.getenv("SCYLLA_PORT", "9042"))
 DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() == "true"
 

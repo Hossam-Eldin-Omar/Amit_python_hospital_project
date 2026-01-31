@@ -86,32 +86,19 @@ def render():
         
         phone = st.text_input(
             "Phone Number *",
-            placeholder="+1 (555) 123-4567",
+            placeholder="+20 123-4567890",
             help="Patient's contact phone number"
-        )
-        
-        email = st.text_input(
-            "Email (Optional)",
-            placeholder="patient@example.com",
-            help="Patient's email address"
         )
         
         st.markdown("### Additional Information")
         
-        col1, col2 = st.columns(2)
+        col1 = st.columns(1)
         
         with col1:
             gender = st.selectbox(
                 "Gender",
                 options=["Not Specified", "Male", "Female", "Other"],
                 help="Patient's gender"
-            )
-        
-        with col2:
-            blood_type = st.selectbox(
-                "Blood Type (Optional)",
-                options=["Not Specified", "O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"],
-                help="Patient's blood type"
             )
         
         st.markdown("---")

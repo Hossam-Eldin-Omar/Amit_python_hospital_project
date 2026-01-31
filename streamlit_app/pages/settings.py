@@ -85,7 +85,7 @@ def render():
     with col1:
         host = st.text_input(
             "Database Host",
-            value="scylla-node",
+            value="new-scylla-node",
             disabled=True,
             help="ScyllaDB host address"
         )

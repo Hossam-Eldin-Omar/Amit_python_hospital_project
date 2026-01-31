@@ -213,7 +213,7 @@ docker build -t hospital-app .
 
 # Run container
 docker run -p 8501:8501 \
-  -e SCYLLA_HOST=scylla-node \
+  -e SCYLLA_HOST=new-scylla-node \
   -e SCYLLA_PORT=9042 \
   --network your-docker-network \
   hospital-app

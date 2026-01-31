@@ -28,7 +28,7 @@ COPY . .
 ENV PYTHONPATH="/app/src:/app"
 
 # Set environment variables for ScyllaDB connection
-ENV SCYLLA_HOST=scylla-node
+ENV SCYLLA_HOST=new-scylla-node
 ENV SCYLLA_PORT=9042
 
 # Expose Streamlit port
@@ -42,4 +42,5 @@ RUN echo '[general]' > /app/.streamlit/credentials.toml && \
     echo 'email = ""' >> /app/.streamlit/credentials.toml
 
 # Run Streamlit app
+ENTRYPOINT []
 CMD ["streamlit", "run", "streamlit_app/app.py", "--server.port=8501", "--server.headless=true"]
