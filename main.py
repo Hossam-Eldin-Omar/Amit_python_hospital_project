@@ -1,176 +1,229 @@
-"""Main entry point for the hospital management system"""
+"""Main entry point for the hospital management system.
+
+Demonstrates the full UML relationship chain:
+    Hospital  --contains-->  Department  --manages-->  Patient
+                                          --employs-->  Staff
+"""
 import sys
 from datetime import datetime
-from uuid import uuid4
+from uuid import uuid4, UUID
 
-# Import from your src directory
 from src.database.connection import ScyllaDBConnection
 from src.database.init_db import initialize_database
+from src.database.repositories.hospital_repository import HospitalRepository
+from src.database.repositories.department_repository import DepartmentRepository
 from src.database.repositories.patient_repository import PatientRepository
+from src.database.repositories.staff_repository import StaffRepository
 from src.utils.logger import setup_logger
 
-# Setup logging
 logger = setup_logger(__name__)
 
 
-def get_patient_input():
-    """Read patient data from terminal input"""
+# ------------------------------------------------------------------ #
+# Input helpers
+# ------------------------------------------------------------------ #
+def get_hospital_input():
+    name = input("Hospital name: ").strip()
+    location = input("Location: ").strip()
+    phone = input("Phone (optional): ").strip() or None
+    if not name or not location:
+        raise ValueError("Name and location are required")
+    return name, location, phone
+
+
+def get_department_input(hospitals):
+    """Pick an existing hospital, then enter department details."""
+    if not hospitals:
+        raise ValueError("No hospitals exist yet. Create one first.")
+
+    print("\nAvailable hospitals:")
+    for i, h in enumerate(hospitals):
+        print(f"  [{i}] {h.name} – {h.location} (ID: {h.hospital_id})")
+
+    idx = int(input("Select hospital index: "))
+    hospital = hospitals[idx]
+
+    name = input("Department name: ").strip()
+    description = input("Description (optional): ").strip() or None
+    if not name:
+        raise ValueError("Department name is required")
+    return hospital.hospital_id, name, description
+
+
+def get_patient_input(departments):
+    """Pick an existing department, then enter patient details."""
+    if not departments:
+        raise ValueError("No departments exist yet. Create one first.")
+
+    print("\nAvailable departments:")
+    for i, d in enumerate(departments):
+        print(f"  [{i}] {d.name} – Hospital: {d.hospital_id} (Dept ID: {d.department_id})")
+
+    idx = int(input("Select department index: "))
+    department = departments[idx]
 
     first_name = input("First name: ").strip()
     last_name = input("Last name: ").strip()
     dob = input("Date of birth (YYYY-MM-DD): ").strip()
-    age = int((datetime.now() - datetime.strptime(dob, "%Y-%m-%d")).days / 365.25)
     phone = input("Phone: ").strip()
+    medical_record = input("Medical record note (optional): ").strip() or None
+
+    age = int((datetime.now() - datetime.strptime(dob, "%Y-%m-%d")).days / 365.25)
+    datetime.strptime(dob, "%Y-%m-%d")  # validate
 
     if not first_name or not last_name:
-        raise ValueError("First name and last name are required")
-
-    # Validate date format
-    datetime.strptime(dob, "%Y-%m-%d")
-
-    return first_name, last_name, dob, age, phone
+        raise ValueError("First and last name are required")
+    return department.department_id, first_name, last_name, dob, age, phone, medical_record
 
 
-def insert_patient(patient_repo, first_name, last_name, dob, age, phone):
-    """Insert patient using PatientRepository"""
-    try:
-        patient_id = patient_repo.create(
-            first_name=first_name,
-            last_name=last_name,
-            date_of_birth=dob,
-            age=age,
-            phone=phone
-        )
-        
-        if patient_id:
-            logger.info(f"✓ Patient inserted with ID {patient_id}")
-            return patient_id
-        else:
-            logger.error("Failed to insert patient")
-            return None
-            
-    except Exception as e:
-        logger.error(f"Error inserting patient: {e}")
-        return None
+def get_staff_input(departments):
+    """Pick an existing department, then enter staff details."""
+    if not departments:
+        raise ValueError("No departments exist yet. Create one first.")
+
+    print("\nAvailable departments:")
+    for i, d in enumerate(departments):
+        print(f"  [{i}] {d.name} – Hospital: {d.hospital_id} (Dept ID: {d.department_id})")
+
+    idx = int(input("Select department index: "))
+    department = departments[idx]
+
+    first_name = input("First name: ").strip()
+    last_name = input("Last name: ").strip()
+    age = int(input("Age: ").strip())
+    position = input("Position (e.g. Doctor, Nurse): ").strip()
+
+    if not first_name or not last_name or not position:
+        raise ValueError("First name, last name, and position are required")
+    return department.department_id, first_name, last_name, age, position
 
 
-def display_data(patient_repo):
-    """Query and display data using PatientRepository"""
-    try:
-        logger.info("")
-        logger.info("=" * 60)
-        logger.info("PATIENTS IN DATABASE")
-        logger.info("=" * 60)
+# ------------------------------------------------------------------ #
+# Display helpers
+# ------------------------------------------------------------------ #
+def display_all(hosp_repo, dept_repo, patient_repo, staff_repo):
+    """Print a full tree: Hospital → Departments → Patients & Staff."""
+    hospitals = hosp_repo.get_all()
+    if not hospitals:
+        logger.info("No hospitals in the system.")
+        return hospitals, []
 
-        patients = patient_repo.get_all()
-        
-        if not patients:
-            logger.info("No patients found in database")
-        else:
-            for patient in patients:
-                logger.info(f"ID: {patient.patient_id} | {patient.first_name} {patient.last_name}")
-                logger.info(f"  DOB: {patient.date_of_birth}")
-                logger.info(f"  Age: {patient.age}")
-                logger.info(f"  Phone: {patient.phone}")
-                logger.info(f"  Department: {patient.department_id}")
-                logger.info(f"  Created: {patient.created_at}")
-                logger.info("")
-                
-    except Exception as e:
-        logger.error(f"Error displaying patients: {e}")
+    all_departments = []
+    for hospital in hospitals:
+        logger.info(f"\n🏥  {hospital.name} | {hospital.location} | {hospital.phone}")
+        logger.info(f"    Hospital ID: {hospital.hospital_id}")
 
+        departments = dept_repo.find_by_hospital(hospital.hospital_id)
+        all_departments.extend(departments)
 
-def test_repository_operations(patient_repo):
-    """Test various PatientRepository operations"""
-    
-    logger.info("=" * 60)
-    logger.info("TESTING PATIENT REPOSITORY OPERATIONS")
-    logger.info("=" * 60)
-    
-    # Test 1: Display all patients
-    logger.info("\n[TEST 1] Get all patients:")
-    display_data(patient_repo)
-    
-    # Test 2: Search patient by ID
-    logger.info("[TEST 2] Search patient by ID:")
-    patient_id_to_search = input("Enter patient ID to search (or press Enter to skip): ").strip()
-    
-    if patient_id_to_search:
-        logger.info(f"Searching for patient ID: {patient_id_to_search}")
-        patient = patient_repo.find_by_id(patient_id_to_search)
-        
-        if patient:
-            logger.info("Patient found:")
-            logger.info(f"  {patient.view_record()}")
-            logger.info(f"  Contact: {patient.get_contact_info()}")
-        else:
-            logger.info("Patient not found")
-    
-    # Test 3: Search by name
-    logger.info("\n[TEST 3] Search patients by name:")
-    first_name = input("Enter first name to search (or press Enter to skip): ").strip()
-    last_name = input("Enter last name to search (or press Enter to skip): ").strip()
-    
-    if first_name or last_name:
-        patients = patient_repo.find_by_name(first_name=first_name if first_name else None,
-                                            last_name=last_name if last_name else None)
-        
-        if patients:
-            logger.info(f"Found {len(patients)} patient(s):")
-            for patient in patients:
-                logger.info(f"  - {patient.view_record()}")
-        else:
-            logger.info("No patients found with that name")
-    
-    logger.info("\n" + "=" * 60)
+        if not departments:
+            logger.info("    └─ (no departments)")
+            continue
+
+        for dept in departments:
+            logger.info(f"    🏢  {dept.name} – {dept.description or 'no description'}")
+            logger.info(f"        Department ID: {dept.department_id}")
+
+            # Patients managed by this department
+            patients = patient_repo.find_by_department(dept.department_id)
+            if patients:
+                logger.info("        👥 Patients:")
+                for p in patients:
+                    logger.info(
+                        f"            • {p.first_name} {p.last_name} | "
+                        f"Age: {p.age} | Phone: {p.phone} | "
+                        f"Medical Record: {p.medical_record or 'N/A'}"
+                    )
+            else:
+                logger.info("        👥 Patients: (none)")
+
+            # Staff employed by this department
+            staff = staff_repo.find_by_department(dept.department_id)
+            if staff:
+                logger.info("        👔 Staff:")
+                for s in staff:
+                    logger.info(
+                        f"            • {s.first_name} {s.last_name} | "
+                        f"Position: {s.position} | Age: {s.age}"
+                    )
+            else:
+                logger.info("        👔 Staff: (none)")
+
+    return hospitals, all_departments
 
 
+# ------------------------------------------------------------------ #
+# Main menu
+# ------------------------------------------------------------------ #
 def main():
-    """Main application entry point"""
-
     logger.info("=" * 60)
-    logger.info("Hospital Management System - Starting")
+    logger.info("Hospital Management System")
     logger.info("=" * 60)
 
     try:
-        # Connect to database
         db = ScyllaDBConnection()
         session = db.connect()
-
-        # Initialize database schema
-        logger.info("Initializing database schema...")
         initialize_database(session)
 
-        # Initialize PatientRepository
+        hosp_repo = HospitalRepository(session=session)
+        dept_repo = DepartmentRepository(session=session)
         patient_repo = PatientRepository(session=session)
+        staff_repo = StaffRepository(session=session)
 
-        # Menu for testing
-        logger.info("\nSelect an option:")
-        logger.info("1. Add new patient")
-        logger.info("2. Test repository operations")
-        logger.info("3. Exit")
-        
-        choice = input("Enter your choice (1-3): ").strip()
-        
-        if choice == "1":
-            # Read patient data from user
-            logger.info("Enter new patient data")
-            try:
-                patient_data = get_patient_input()
-                insert_patient(patient_repo, *patient_data)
-            except ValueError as ve:
-                logger.error(f"Input error: {ve}")
-            
-            # Display all patients
-            display_data(patient_repo)
-            
-        elif choice == "2":
-            # Test repository operations
-            test_repository_operations(patient_repo)
-            
-        logger.info("=" * 60)
-        logger.info("✅ Application completed successfully!")
-        logger.info("=" * 60)
+        while True:
+            logger.info("\n--- Menu ---")
+            logger.info("1. Add Hospital")
+            logger.info("2. Add Department")
+            logger.info("3. Add Patient")
+            logger.info("4. Add Staff")
+            logger.info("5. View all (tree)")
+            logger.info("6. Exit")
+
+            choice = input("Choice (1-6): ").strip()
+
+            if choice == "1":
+                try:
+                    name, location, phone = get_hospital_input()
+                    hid = hosp_repo.create(name, location, phone)
+                    logger.info(f"✓ Hospital created: {hid}")
+                except ValueError as ve:
+                    logger.error(f"Input error: {ve}")
+
+            elif choice == "2":
+                hospitals, _ = display_all(hosp_repo, dept_repo, patient_repo, staff_repo)
+                try:
+                    hospital_id, name, description = get_department_input(hospitals)
+                    did = dept_repo.create(name, hospital_id, description)
+                    logger.info(f"✓ Department created: {did}")
+                except (ValueError, IndexError) as e:
+                    logger.error(f"Input error: {e}")
+
+            elif choice == "3":
+                _, departments = display_all(hosp_repo, dept_repo, patient_repo, staff_repo)
+                try:
+                    dept_id, fn, ln, dob, age, phone, med = get_patient_input(departments)
+                    pid = patient_repo.create(fn, ln, dob, age, phone, dept_id, med)
+                    logger.info(f"✓ Patient created: {pid}")
+                except (ValueError, IndexError) as e:
+                    logger.error(f"Input error: {e}")
+
+            elif choice == "4":
+                _, departments = display_all(hosp_repo, dept_repo, patient_repo, staff_repo)
+                try:
+                    dept_id, fn, ln, age, position = get_staff_input(departments)
+                    sid = staff_repo.create(fn, ln, age, position, dept_id)
+                    logger.info(f"✓ Staff created: {sid}")
+                except (ValueError, IndexError) as e:
+                    logger.error(f"Input error: {e}")
+
+            elif choice == "5":
+                display_all(hosp_repo, dept_repo, patient_repo, staff_repo)
+
+            elif choice == "6":
+                logger.info("Goodbye!")
+                break
+            else:
+                logger.warning("Invalid choice.")
 
         db.close()
 
