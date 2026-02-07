@@ -2928,7 +2928,3 @@ Instead:
 - [API Documentation](#api-endpoints)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
-
----
-
-**Last Updated**: February 7, 2026 | **Version**: 2.0.0 | **Status**: Production Ready ✅
