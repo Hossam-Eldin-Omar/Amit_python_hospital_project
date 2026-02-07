@@ -1162,40 +1162,7 @@ class Settings:
 - `INFO`: General information about program execution
 - `WARNING`: Warning messages for potentially harmful situations
 - `ERROR`: Error messages for serious problems
-
-**Log File Location**: `logs/hospital_management.log`
-
-**Configure Logging**:
-
-```python
-# In src/utils/logger.py
-import logging
-
-def setup_logger(name: str, level: str = "INFO"):
-    logger = logging.getLogger(name)
-    logger.setLevel(getattr(logging, level))
-    
-    # Console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    
-    # File handler
-    file_handler = logging.FileHandler('logs/hospital_management.log')
-    file_handler.setLevel(logging.DEBUG)
-    
-    # Formatter
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
-    console_handler.setFormatter(formatter)
-    file_handler.setFormatter(formatter)
-    
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
-    
-    return logger
-```
+---
 
 ### Streamlit Configuration
 
@@ -1419,10 +1386,7 @@ db.close()
 hospital-management/
 │
 ├── 📄 README.md                          # This file
-├── 📄 STREAMLIT_UI_REFERENCE.md          # UI design reference
-├── 📄 LICENSE                            # MIT License
 ├── 📄 .gitignore                         # Git ignore rules
-├── 📄 .env.example                       # Environment template
 ├── 📄 pyproject.toml                     # Poetry dependencies
 ├── 📄 poetry.lock                        # Locked dependencies
 ├── 🐳 dockerfile                         # Docker image definition
@@ -1470,27 +1434,11 @@ hospital-management/
 │       ├── manage_staff.py               # Staff management
 │       └── settings.py                   # Settings page
 │
-├── 📂 tests/                             # Test suite
-│   ├── __init__.py
-│   ├── test_patient_registration.py
-│   ├── test_hospital_management.py
-│   ├── test_department_management.py
-│   └── test_staff_management.py
-│
-├── 📂 logs/                              # Log files
-│   └── hospital_management.log           # Application logs
-│
 ├── 📂 .streamlit/                        # Streamlit config
 │   ├── config.toml                       # Streamlit settings
 │   └── credentials.toml                  # Streamlit credentials
 │
-├── 📂 docs/                              # Documentation
-│   ├── API.md                            # API documentation
-│   ├── DEPLOYMENT.md                     # Deployment guide
-│   └── ARCHITECTURE.md                   # Architecture docs
-│
-├── 📄 main.py                            # CLI entry point
-└── 📄 requirements.txt                   # Pip dependencies (optional)
+└── 📄 main.py                            # CLI entry point
 ```
 
 ### Module Descriptions
